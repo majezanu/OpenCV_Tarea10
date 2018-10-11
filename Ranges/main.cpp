@@ -14,7 +14,7 @@ void point(int event, int x, int y, int flags, void* userdata);
 
 int main(int argc, char **argv)
 {
-	original = imread("images/Fig0635(middle_row_left_chalk ).tif");
+	original = imread("images/lapices.jpg");
 	namedWindow(originalName, WINDOW_AUTOSIZE);
 	namedWindow(BGRName, WINDOW_NORMAL);
 	namedWindow(HLSName, WINDOW_NORMAL);
