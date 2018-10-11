@@ -61,10 +61,16 @@ public:
 	Mat toHSIKernels();
 	Mat toRGBHistogram();
 	Mat toHSIHistogram();
-
+	Mat Denoise(float threshold);
+	Mat addNoise();
 	void  SpectrumGenerator();
 	void  SpectrumGenerator2();
 
+	void DecomposeA(float *A, int width);
+	void TransposeA(float *A, int width, int height);
+	void Decompose(float *A, int width, int height);
+	void ReconstructA(float *A, int width);
+	void Reconstruct(float *A, int width, int height);
 
 	void genHnrBF(Mat& dst, Mat Dpk_uv, Mat Dmk_uv, int n, double D0k);
 	void genDk_uv(Mat src, Mat &Dpk, Mat &Dmk, int uk, int vk);

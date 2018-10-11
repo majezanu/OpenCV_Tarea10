@@ -1522,10 +1522,10 @@ Mat Img::gamma(int a, int b) {
 Mat Img::Gauss(float m, float sigma) {
 	Mat src = mMat;
 	Mat dst;
-	Mat gauss_noise = Mat::zeros(src.size(), CV_8U);
+	Mat gauss_noise = Mat(src.size(), CV_8UC3);
 	randn(gauss_noise, m, sigma);
 	dst = src + gauss_noise;
-	normalize(dst, dst, 0, 255, CV_MINMAX);
+	//normalize(dst, dst, 0, 255, CV_MINMAX);
 	mMat = dst;
 	return mMat;
 }
@@ -1535,4 +1535,112 @@ int Img::factorial(int n) {
 		factorial = b * factorial;
 	}
 	return factorial;
+}
+
+Mat Img::Denoise(float threshold)
+{
+	Mat input = mMat;
+	Mat output;
+	assert(input.data != output.data);
+	input.convertTo(output, CV_32F);
+	Decompose((float*)output.data, output.cols, output.rows);
+
+	for (int y = 0; y < output.rows; y++) {
+		float *ptr = (float*)output.ptr(y);
+
+		for (int x = 0; x < output.cols; x++) {
+			ptr[x] = (signbit(ptr[x]) == 1 ? -1 : 1) * max(0.f, fabs(ptr[x]) - threshold);
+		}
+	}
+
+	Reconstruct((float*)output.data, output.rows, output.cols);
+	output.convertTo(output, CV_8U);
+	return output;
+}
+
+void Img::DecomposeA(float *A, int width)
+{
+	const float inv_sqrt2 = 1 / sqrt(2);
+	float norm = 1.0f / sqrt(width);
+	for (int i = 0; i < width; i++) {
+		A[i] *= norm;
+	}
+	float *tmp = new float[width];
+	while (width > 1) {
+		width /= 2;
+		for (int i = 0; i < width; i++) {
+			tmp[i] = (A[2 * i] + A[2 * i + 1]) * inv_sqrt2;
+			tmp[width + i] = (A[2 * i] - A[2 * i + 1]) * inv_sqrt2;
+		}
+
+		memcpy(A, tmp, width * 2 * sizeof(float));
+	}
+
+	delete[] tmp;
+}
+
+void Img::TransposeA(float *A, int width, int height)
+{
+	float *B = new float[width*height];
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			B[x*height + y] = A[y*width + x];
+		}
+	}
+
+	memcpy(A, B, sizeof(float)*width*height);
+	delete[] B;
+}
+
+void Img::Decompose(float *A, int width, int height)
+{
+	for (int i = 0; i < height; i++) {
+		DecomposeA(&A[i*width], width);
+	}
+
+	TransposeA(A, width, height);
+
+	for (int i = 0; i < width; i++) {
+		DecomposeA(&A[i*height], height);
+	}
+
+	TransposeA(A, height, width);
+}
+
+void Img::ReconstructA(float *A, int width)
+{
+	const float inv_sqrt2 = 1 / sqrt(2);
+	float inv_norm = sqrt(width);
+	float *tmp = new float[width];
+	int k = 1;
+	while (k < width) {
+		for (int i = 0; i < k; i++) {
+			tmp[2 * i] = (A[i] + A[k + i]) * inv_sqrt2;
+			tmp[2 * i + 1] = (A[i] - A[k + i]) * inv_sqrt2;
+		}
+
+		memcpy(A, tmp, sizeof(float)*(k * 2));
+		k *= 2;
+	}
+
+	for (int i = 0; i < width; i++) {
+		A[i] *= inv_norm;
+	}
+
+	delete[] tmp;
+}
+
+void Img::Reconstruct(float *A, int width, int height)
+{
+	for (int i = 0; i < width; i++) {
+		ReconstructA(&A[i*height], height);
+	}
+
+	TransposeA(A, height, width);
+
+	for (int i = 0; i < height; i++) {
+		ReconstructA(&A[i*width], width);
+	}
+
+	TransposeA(A, width, height);
 }
